@@ -1,0 +1,81 @@
+{
+    "log_byte_length": 10016,
+    "elapsed_seconds": 1.46124e-04,
+    "total_bytes_served": 592748,
+    "lines": {
+        "ipv4": 34,
+        "ipv6": 34,
+        "valid": 68,
+        "invalid": 0,
+        "total": 68
+    },
+    "visits": {
+        "ipv4": 7,
+        "ipv6": 7,
+        "total": 14
+    },
+    "hour_counters": [
+        {
+            "value": 10,
+            "total": 4
+        },
+        {
+            "value": 11,
+            "total": 8
+        },
+        {
+            "value": 12,
+            "total": 26
+        },
+        {
+            "value": 13,
+            "total": 4
+        },
+        {
+            "value": 14,
+            "total": 10
+        },
+        {
+            "value": 15,
+            "total": 2
+        },
+        {
+            "value": 16,
+            "total": 4
+        },
+        {
+            "value": 18,
+            "total": 10
+        }
+    ],
+    "method_counters": [
+        {
+            "value": "GET",
+            "total": 66
+        },
+        {
+            "value": "HEAD",
+            "total": 2
+        }
+    ],
+    "version_counters": [
+        {
+            "value": "HTTP/1.0",
+            "total": 2
+        },
+        {
+            "value": "HTTP/1.1",
+            "total": 66
+        }
+    ],
+    "status_counters": [
+        {
+            "value": 200,
+            "total": 44
+        },
+        {
+            "value": 404,
+            "total": 24
+        }
+    ]
+}
