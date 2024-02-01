@@ -3,7 +3,7 @@
 [![CI][ci-shd]][ci-url]
 [![LC][lc-shd]][lc-url]
 
-### Loog server log analyzer.
+### [Server log](https://en.wikipedia.org/wiki/Common_Log_Format) analyzer.
 
 #### :rocket: Usage
 
