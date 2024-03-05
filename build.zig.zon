@@ -4,8 +4,8 @@
     .paths = .{""},
     .dependencies = .{
         .hyperloglog = .{
-            .url = "https://github.com/tensorush/zig-hyperloglog/archive/dc12a0b.tar.gz",
-            .hash = "12209675a15dcbfca8f052141dd88cdb3ed073ce5f2b46db0b343954b8a2be0af950",
+            .url = "https://github.com/axiomhq/zig-hyperloglog/archive/08f2816.tar.gz",
+            .hash = "1220d0cae304bb1007a510eb4be63cab2c91bc2cd3fccd5d88b9065f7bc52b2a3981",
         },
         .clap = .{
             .url = "https://github.com/Hejsil/zig-clap/archive/9c23bcb.tar.gz",

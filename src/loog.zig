@@ -92,10 +92,10 @@ pub fn analyze(allocator: std.mem.Allocator, log: []const u8, writer: anytype) !
             };
             if (is_ipv4) {
                 num_ipv4_hits += 1;
-                try hll_ipv4.add_hashed(hashed_address);
+                try hll_ipv4.addHashed(hashed_address);
             } else {
                 num_ipv6_hits += 1;
-                try hll_ipv6.add_hashed(hashed_address);
+                try hll_ipv6.addHashed(hashed_address);
             }
 
             // Parse hour.
