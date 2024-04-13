@@ -2,6 +2,8 @@ const std = @import("std");
 const http = @import("http.zig");
 const hyperloglog = @import("hyperloglog");
 
+const MAX_LOG_LINE_LEN: usize = 1 << 10;
+
 const HourCounter = struct {
     value: usize,
     total: usize,
@@ -45,18 +47,17 @@ const Report = struct {
 };
 
 /// Analyze CLF server log.
-pub fn analyze(allocator: std.mem.Allocator, log: []const u8, writer: anytype) !void {
+pub fn analyze(allocator: std.mem.Allocator, reader: anytype, writer: anytype) !void {
     var version_counters = std.enums.EnumArray(http.Version, usize).initFill(0);
     var method_counters = std.enums.EnumArray(http.Method, usize).initFill(0);
     var status_counters = std.enums.EnumArray(http.Status, usize).initFill(0);
     var hour_counters = [1]usize{0} ** 24;
     var total_bytes_served: usize = 0;
     var num_invalid_lines: usize = 0;
+    var log_byte_length: usize = 0;
     var num_ipv4_hits: usize = 0;
     var num_ipv6_hits: usize = 0;
-
-    var hasher_seed: u64 = undefined;
-    try std.os.getrandom(std.mem.asBytes(&hasher_seed));
+    const hasher_seed: u64 = 0;
 
     var hll_ipv4 = try hyperloglog.DefaultHyperLogLog.init(allocator);
     defer hll_ipv4.deinit();
@@ -68,13 +69,13 @@ pub fn analyze(allocator: std.mem.Allocator, log: []const u8, writer: anytype) !
     const start_time = timer.lap();
 
     // Parse log lines.
-    var log_line_iter = std.mem.tokenizeScalar(u8, log, '\n');
-    while (log_line_iter.next()) |log_line| {
-        if (std.mem.indexOfScalar(u8, log_line, ' ')) |host_end_idx| {
+    var line_buf: [MAX_LOG_LINE_LEN]u8 = undefined;
+    while (try reader.readUntilDelimiterOrEof(&line_buf, '\n')) |line| : (log_byte_length += line.len + 1) {
+        if (std.mem.indexOfScalar(u8, line, ' ')) |host_end_idx| {
             // Parse host IP address.
             var is_ipv4 = true;
-            const address = std.net.Address.parseIp4(log_line[0..host_end_idx], 8080) catch blk: {
-                const address = std.net.Address.parseIp6(log_line[0..host_end_idx], 8080) catch {
+            const address = std.net.Address.parseIp4(line[0..host_end_idx], 8080) catch blk: {
+                const address = std.net.Address.parseIp6(line[0..host_end_idx], 8080) catch {
                     num_invalid_lines += 1;
                     continue;
                 };
@@ -99,39 +100,39 @@ pub fn analyze(allocator: std.mem.Allocator, log: []const u8, writer: anytype) !
             }
 
             // Parse hour.
-            if (std.mem.indexOfScalarPos(u8, log_line, host_end_idx, '[')) |date_start_idx| {
-                if (std.fmt.parseUnsigned(u5, log_line[date_start_idx + 13 .. date_start_idx + 15], 10) catch null) |hour| {
+            if (std.mem.indexOfScalarPos(u8, line, host_end_idx, '[')) |date_start_idx| {
+                if (std.fmt.parseUnsigned(u5, line[date_start_idx + 13 .. date_start_idx + 15], 10) catch null) |hour| {
                     hour_counters[hour] += 1;
                 }
             }
 
             // Parse request.
-            if (std.mem.indexOfScalarPos(u8, log_line, host_end_idx, '"')) |request_start_idx| {
+            if (std.mem.indexOfScalarPos(u8, line, host_end_idx, '"')) |request_start_idx| {
                 // Parse method.
-                const method_end_idx = std.mem.indexOfScalarPos(u8, log_line, request_start_idx, ' ').?;
-                if (std.meta.stringToEnum(http.Method, log_line[request_start_idx + 1 .. method_end_idx])) |method| {
+                const method_end_idx = std.mem.indexOfScalarPos(u8, line, request_start_idx, ' ').?;
+                if (std.meta.stringToEnum(http.Method, line[request_start_idx + 1 .. method_end_idx])) |method| {
                     method_counters.getPtr(method).* += 1;
                 }
 
                 // Parse version.
-                const path_end_idx = std.mem.indexOfScalarPos(u8, log_line, method_end_idx + 1, ' ').?;
-                const version_end_idx = std.mem.indexOfScalarPos(u8, log_line, path_end_idx, '"').?;
-                if (std.meta.stringToEnum(http.Version, log_line[path_end_idx + 1 .. version_end_idx])) |version| {
+                const path_end_idx = std.mem.indexOfScalarPos(u8, line, method_end_idx + 1, ' ').?;
+                const version_end_idx = std.mem.indexOfScalarPos(u8, line, path_end_idx, '"').?;
+                if (std.meta.stringToEnum(http.Version, line[path_end_idx + 1 .. version_end_idx])) |version| {
                     version_counters.getPtr(version).* += 1;
                 }
 
                 // Parse status code.
-                const request_end_idx = std.mem.indexOfScalarPos(u8, log_line, request_start_idx + 1, '"').?;
-                const status_code_end_idx = std.mem.indexOfScalarPos(u8, log_line, request_end_idx + 2, ' ').?;
-                if (std.fmt.parseUnsigned(u10, log_line[request_end_idx + 2 .. status_code_end_idx], 10) catch null) |status_code| {
+                const request_end_idx = std.mem.indexOfScalarPos(u8, line, request_start_idx + 1, '"').?;
+                const status_code_end_idx = std.mem.indexOfScalarPos(u8, line, request_end_idx + 2, ' ').?;
+                if (std.fmt.parseUnsigned(u10, line[request_end_idx + 2 .. status_code_end_idx], 10) catch null) |status_code| {
                     if (std.meta.intToEnum(http.Status, status_code) catch null) |status| {
                         status_counters.getPtr(status).* += 1;
                     }
                 }
 
                 // Parse file size.
-                const file_size_end_idx = std.mem.indexOfScalarPos(u8, log_line, status_code_end_idx + 1, ' ').?;
-                if (std.fmt.parseUnsigned(usize, log_line[status_code_end_idx + 1 .. file_size_end_idx], 10) catch null) |file_size| {
+                const file_size_end_idx = std.mem.indexOfScalarPos(u8, line, status_code_end_idx + 1, ' ').?;
+                if (std.fmt.parseUnsigned(usize, line[status_code_end_idx + 1 .. file_size_end_idx], 10) catch null) |file_size| {
                     total_bytes_served += file_size;
                 }
             }
@@ -177,7 +178,7 @@ pub fn analyze(allocator: std.mem.Allocator, log: []const u8, writer: anytype) !
 
     // Create log report.
     const report = Report{
-        .log_byte_length = log.len,
+        .log_byte_length = log_byte_length,
         .total_bytes_served = total_bytes_served,
         .elapsed_seconds = @as(f64, @floatFromInt(timer.read() - start_time)) / @as(f64, @floatFromInt(std.time.ns_per_s)),
         .lines = .{

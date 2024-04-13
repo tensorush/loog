@@ -2,8 +2,6 @@ const std = @import("std");
 const clap = @import("clap");
 const loog = @import("loog.zig");
 
-const MAX_LOG_LEN: usize = 1 << 22;
-
 const PARAMS = clap.parseParamsComptime(
     \\-h, --help   Display help menu.
     \\<str>        Input CLF log file path.
@@ -43,11 +41,12 @@ pub fn main() !void {
     const cur_dir = std.fs.cwd();
 
     const log_file = try cur_dir.openFile(log_file_path, .{});
-    const log = try log_file.readToEndAlloc(allocator, MAX_LOG_LEN);
-    log_file.close();
+    defer log_file.close();
+
+    var buf_reader = std.io.bufferedReader(log_file.reader());
 
     const report_file = try cur_dir.createFile(report_file_path, .{});
     defer report_file.close();
 
-    try loog.analyze(allocator, log, report_file.writer());
+    try loog.analyze(allocator, buf_reader.reader(), report_file.writer());
 }

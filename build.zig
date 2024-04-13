@@ -13,7 +13,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "loog",
-        .root_source_file = std.Build.LazyPath.relative("src/main.zig"),
+        .root_source_file = b.path("src/main.zig"),
         .target = b.standardTargetOptions(.{}),
         .optimize = b.standardOptimizeOption(.{}),
         .version = .{ .major = 0, .minor = 1, .patch = 0 },
@@ -26,7 +26,6 @@ pub fn build(b: *std.Build) void {
     if (b.args) |args| {
         exe_run.addArgs(args);
     }
-
     exe_step.dependOn(&exe_run.step);
     b.default_step.dependOn(exe_step);
 
