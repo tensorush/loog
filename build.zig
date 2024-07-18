@@ -1,22 +1,33 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+    const root_source_file = b.path("src/main.zig");
+    const version = std.SemanticVersion{ .major = 0, .minor = 1, .patch = 0 };
+
     // Dependencies
-    const hyperloglog_dep = b.dependency("hyperloglog", .{});
+    const hyperloglog_dep = b.dependency("hyperloglog", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const hyperloglog_mod = hyperloglog_dep.module("hyperloglog");
 
-    const clap_dep = b.dependency("clap", .{});
+    const clap_dep = b.dependency("clap", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const clap_mod = clap_dep.module("clap");
 
     // Executable
-    const exe_step = b.step("exe", "Run Loog server log analyzer");
+    const exe_step = b.step("exe", "Run executable");
 
     const exe = b.addExecutable(.{
         .name = "loog",
-        .root_source_file = b.path("src/main.zig"),
-        .target = b.standardTargetOptions(.{}),
-        .optimize = b.standardOptimizeOption(.{}),
-        .version = .{ .major = 0, .minor = 1, .patch = 0 },
+        .target = target,
+        .version = version,
+        .optimize = optimize,
+        .root_source_file = root_source_file,
     });
     exe.root_module.addImport("hyperloglog", hyperloglog_mod);
     exe.root_module.addImport("clap", clap_mod);
@@ -29,14 +40,16 @@ pub fn build(b: *std.Build) void {
     exe_step.dependOn(&exe_run.step);
     b.default_step.dependOn(exe_step);
 
-    // Lints
-    const lints_step = b.step("lint", "Run lints");
+    // Formatting checks
+    const fmt_step = b.step("fmt", "Run formatting checks");
 
-    const lints = b.addFmt(.{
-        .paths = &.{ "src", "build.zig" },
+    const fmt = b.addFmt(.{
+        .paths = &.{
+            "src/",
+            "build.zig",
+        },
         .check = true,
     });
-
-    lints_step.dependOn(&lints.step);
-    b.default_step.dependOn(lints_step);
+    fmt_step.dependOn(&fmt.step);
+    b.default_step.dependOn(fmt_step);
 }
