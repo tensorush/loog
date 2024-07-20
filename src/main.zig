@@ -3,7 +3,7 @@ const clap = @import("clap");
 const loog = @import("loog.zig");
 
 const PARAMS = clap.parseParamsComptime(
-    \\-h, --help   Display help menu.
+    \\-h, --help   Display help.
     \\<str>        Input CLF log file path.
     \\<str>        Output JSON report file path.
     \\
@@ -16,8 +16,8 @@ pub fn main() !void {
     };
 
     var arena = std.heap.ArenaAllocator.init(gpa.allocator());
-    defer arena.deinit();
     const allocator = arena.allocator();
+    defer arena.deinit();
 
     var res = try clap.parse(clap.Help, &PARAMS, clap.parsers.default, .{ .allocator = allocator });
     defer res.deinit();
@@ -37,9 +37,8 @@ pub fn main() !void {
     const cur_dir = std.fs.cwd();
 
     const log_file = try cur_dir.openFile(log_file_path, .{});
-    defer log_file.close();
-
     var buf_reader = std.io.bufferedReader(log_file.reader());
+    defer log_file.close();
 
     const report_file = try cur_dir.createFile(report_file_path, .{});
     defer report_file.close();
